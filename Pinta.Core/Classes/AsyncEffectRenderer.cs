@@ -30,7 +30,6 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -40,12 +39,8 @@ using Debug = System.Diagnostics.Debug;
 namespace Pinta.Core;
 
 // Only call methods on this class from a single thread (The UI thread).
-internal sealed class AsyncEffectRenderer : IDisposable
+internal sealed class AsyncEffectRenderer
 {
-	internal readonly record struct CompletionInfo (
-		bool WasCanceled,
-		IReadOnlyList<Exception> Errors);
-
 	internal sealed class Settings
 	{
 		internal int ThreadCount { get; }
@@ -73,55 +68,27 @@ internal sealed class AsyncEffectRenderer : IDisposable
 		}
 	}
 
-	TaskCompletionSource<CompletionInfo> completion_source;
-	CancellationTokenSource cancellation_source;
-	ConcurrentQueue<RectangleI> queued_tiles;
-	int tiles_count = 0;
-
-	uint timer_tick_id;
-
-	RectangleI updated_area;
-
 	private readonly Settings settings;
 
 	internal AsyncEffectRenderer (Settings settings)
 	{
-		TaskCompletionSource<CompletionInfo> initialCompletionSource = new ();
-		initialCompletionSource.SetResult (
-			new (
-				WasCanceled: false,
-				Errors: []
-			)
-		);
-
-		completion_source = initialCompletionSource;
-		cancellation_source = new ();
-		queued_tiles = new ConcurrentQueue<RectangleI> ();
-
-		timer_tick_id = 0;
-
 		this.settings = settings;
 	}
 
-	internal bool IsRendering => !completion_source.Task.IsCompleted;
-
-	internal double Progress {
-		get {
-			if (tiles_count == 0) return 0;
-			int dequeued = tiles_count - queued_tiles.Count;
-			return dequeued / (double) tiles_count;
-		}
-	}
-
-	internal void Start (
+	internal RenderHandle Start (
 		BaseEffect effect,
 		Cairo.ImageSurface source,
 		Cairo.ImageSurface dest)
 	{
-		if (IsRendering) throw new InvalidOperationException ("Render is in progress");
+		CancellationTokenSource cancellation_source = new ();
+
+		ConcurrentQueue<RectangleI> queued_tiles;
+
+		int tiles_count = 0;
+
+		RectangleI updated_area = default;
 
 		TaskCompletionSource<CompletionInfo> newCompletionSource = new ();
-		completion_source = newCompletionSource;
 
 		Debug.WriteLine ("AsyncEffectRenderer.Start ()");
 
@@ -142,7 +109,7 @@ internal sealed class AsyncEffectRenderer : IDisposable
 		queued_tiles = targetTiles;
 		tiles_count = targetTiles.Count;
 
-		CancellationToken cancellationToken = ReplaceCancellationSource ();
+		CancellationToken cancellationToken = cancellation_source.Token;
 
 		Debug.WriteLine ("AsyncEffectRenderer.Start () Render starting."); // TODO: Show some kind of ID, perhaps the address
 
@@ -152,16 +119,21 @@ internal sealed class AsyncEffectRenderer : IDisposable
 			.Select (_ => StartRenderThread (RenderNextTile))
 			.ToImmutableArray ();
 
+		// Start timer used to periodically fire update events on the UI thread.
+		uint timer_tick_id = GLib.Functions.TimeoutAdd (
+			0,
+			(uint) settings.UpdateMillis,
+			HandleTimerTick);
+
 		// Start the master render thread.
 		Thread master = StartRenderThread (
 			new ThreadStart (RenderNextTile) // Do part of the rendering on the master thread.
 			+ new ThreadStart (CoordinateSlaveThreads));
 
-		// Start timer used to periodically fire update events on the UI thread.
-		timer_tick_id = GLib.Functions.TimeoutAdd (
-			0,
-			(uint) settings.UpdateMillis,
-			HandleTimerTick);
+		return new (
+			newCompletionSource.Task,
+			cancellation_source,
+			timer_tick_id);
 
 		// ---------------
 		// === Methods ===
@@ -223,7 +195,7 @@ internal sealed class AsyncEffectRenderer : IDisposable
 				}
 
 				// Ignore completions of tiles after a cancel or from a previous render.
-				if (!IsRendering || cancellationToken.IsCancellationRequested)
+				if (newCompletionSource.Task.IsCompleted || cancellationToken.IsCancellationRequested)
 					return;
 
 				// Update bounds to be shown on next expose.
@@ -255,20 +227,20 @@ internal sealed class AsyncEffectRenderer : IDisposable
 				bounds = updated_area;
 			}
 
-			if (IsRendering && !cancellationToken.IsCancellationRequested)
-				Updated?.Invoke (Progress, bounds);
+			if (!newCompletionSource.Task.IsCompleted && !cancellationToken.IsCancellationRequested) {
+				double progress = Progress ();
+				Updated?.Invoke (progress, bounds);
+			}
 
 			return true;
 		}
-	}
 
-	internal Task<CompletionInfo> Finish (bool cancel)
-	{
-		if (cancel) {
-			Debug.WriteLine ("AsyncEffectRenderer.Cancel ()");
-			cancellation_source.Cancel ();
+		double Progress ()
+		{
+			if (tiles_count == 0) return 0;
+			int dequeued = tiles_count - queued_tiles.Count;
+			return dequeued / (double) tiles_count;
 		}
-		return completion_source.Task;
 	}
 
 	internal delegate void UpdateHandler (
@@ -276,22 +248,4 @@ internal sealed class AsyncEffectRenderer : IDisposable
 		RectangleI updatedBounds);
 
 	public event UpdateHandler? Updated;
-
-	public void Dispose ()
-	{
-		if (timer_tick_id > 0)
-			GLib.Source.Remove (timer_tick_id);
-
-		timer_tick_id = 0;
-	}
-
-	CancellationToken ReplaceCancellationSource ()
-	{
-		CancellationTokenSource newSource = new ();
-		CancellationTokenSource oldSource = cancellation_source;
-		oldSource.Cancel (); // Safe to call multiple times
-		oldSource.Dispose (); // Not safe to call multiple times, so this is the only place it should be called
-		cancellation_source = newSource;
-		return newSource.Token;
-	}
 }

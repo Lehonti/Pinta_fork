@@ -103,14 +103,13 @@ public sealed class LivePreviewManager : ILivePreview
 		SimpleHistoryItem historyItem = new (effect.Icon, effect.Name);
 		historyItem.TakeSnapshotOfLayer (doc.Layers.CurrentUserLayerIndex);
 
-		using AsyncEffectRenderer renderer = new (settings);
+		AsyncEffectRenderer renderer = new (settings);
 		renderer.Updated += OnUpdate;
 
 		IProgressDialog dialog = chrome.ProgressDialog;
 		dialog.Title = Translations.GetString ("Rendering Effect");
 		dialog.Text = effect.Name;
-		dialog.Progress = renderer.Progress;
-		dialog.Canceled += HandleProgressDialogCancel;
+		dialog.Progress = 0;
 
 		try {
 			// Paint the pre-effect layer surface into into the working surface.
@@ -119,21 +118,25 @@ public sealed class LivePreviewManager : ILivePreview
 
 			Debug.WriteLine (DateTime.Now.ToString ("HH:mm:ss:ffff") + "Start Live preview.");
 
-			if (effect.EffectData != null)
-				effect.EffectData.PropertyChanged += EffectData_PropertyChanged;
-
-			renderer.Start (
+			var renderHandle = renderer.Start (
 				effect,
 				layer.Surface,
 				LivePreviewSurface);
 
+			if (effect.EffectData != null)
+				effect.EffectData.PropertyChanged += EffectData_PropertyChanged;
+
 			bool userConfirmed = !effect.IsConfigurable || await effect.LaunchConfiguration ();
+
+			if (effect.EffectData != null)
+				effect.EffectData.PropertyChanged -= EffectData_PropertyChanged;
 
 			chrome.MainWindowBusy = true;
 
 			if (!userConfirmed) {
 				Debug.WriteLine ("User decided not to proceed with the render");
-				await renderer.Finish (cancel: true);
+				renderHandle.Cancel ();
+				await renderHandle.RenderTask;
 				return;
 			}
 
@@ -141,16 +144,21 @@ public sealed class LivePreviewManager : ILivePreview
 
 			Debug.WriteLine (DateTime.Now.ToString ("HH:mm:ss:ffff") + "LivePreviewManager.Apply()");
 
+			dialog.Canceled += HandleProgressDialogCancel;
+
 			dialog.Show ();
 
-			var result = await renderer.Finish (cancel: false);
+			var result = await renderHandle.RenderTask;
+
+			dialog.Canceled -= HandleProgressDialogCancel;
 
 			foreach (var ex in result.Errors)
 				Debug.WriteLine ("AsyncEffectRenderer Error while rendering effect: " + effectName + " exception: " + ex.Message + "\n" + ex.StackTrace);
 
 			if (result.WasCanceled) {
 				Debug.WriteLine ("User decided to cancel the render");
-				await renderer.Finish (cancel: true);
+				renderHandle.Cancel ();
+				await renderHandle.RenderTask;
 				return;
 			}
 
@@ -168,38 +176,36 @@ public sealed class LivePreviewManager : ILivePreview
 
 			workspace.ActiveDocument.History.PushNewItem (historyItem);
 
+			// --- Methods
+
+			async void EffectData_PropertyChanged (object? sender, PropertyChangedEventArgs e)
+			{
+				// TODO: calculate bounds
+				handlersInQueue++;
+				renderHandle.Cancel ();
+				await renderHandle.RenderTask;
+				handlersInQueue--;
+				if (handlersInQueue > 0) return;
+				renderer.Start (effect, layer.Surface, LivePreviewSurface);
+			}
+
+			void HandleProgressDialogCancel (object? o, EventArgs e)
+			{
+				renderHandle.Cancel ();
+			}
+
 		} finally {
 
 			IsEnabled = false;
 			LivePreviewSurface = null!;
 			workspace.Invalidate ();
 
-			if (effect.EffectData != null)
-				effect.EffectData.PropertyChanged -= EffectData_PropertyChanged;
-
 			chrome.MainWindowBusy = false;
-
-			dialog.Canceled -= HandleProgressDialogCancel;
 
 			dialog.Hide ();
 		}
 
 		// === Methods ===
-
-		void HandleProgressDialogCancel (object? o, EventArgs e)
-		{
-			renderer.Finish (cancel: true);
-		}
-
-		async void EffectData_PropertyChanged (object? sender, PropertyChangedEventArgs e)
-		{
-			// TODO: calculate bounds
-			handlersInQueue++;
-			await renderer.Finish (cancel: true);
-			handlersInQueue--;
-			if (handlersInQueue > 0) return;
-			renderer.Start (effect, layer.Surface, LivePreviewSurface);
-		}
 
 		void OnUpdate (
 			double progress,
