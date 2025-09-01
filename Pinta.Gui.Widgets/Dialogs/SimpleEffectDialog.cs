@@ -84,37 +84,42 @@ public sealed class SimpleEffectDialog : Gtk.Dialog
 		OnClose += (_, _) => HandleClose ();
 	}
 
-	/// <summary>
-	/// Helper function for launching the dialog and connecting its signals.
-	/// The IAddinLocalizer provides a generic way to get translated strings both for
-	/// Pinta's effects and for effect add-ins.
-	/// </summary>
-	public static async Task<bool> Launch (
-		Gtk.Window parent,
-		BaseEffect effect,
-		IAddinLocalizer localizer,
-		IWorkspaceService workspace)
-	{
-		if (effect.EffectData == null)
-			throw new ArgumentException ($"{effect.EffectData} should not be null", nameof (effect));
+   /// <summary>
+/// Helper function for launching the dialog and connecting its signals.
+/// The IAddinLocalizer provides a generic way to get translated strings both for
+/// Pinta's effects and for effect add-ins.
+/// </summary>
+public static async Task<bool> Launch (
+	Gtk.Window parent,
+	BaseEffect effect,
+	IAddinLocalizer localizer,
+	IWorkspaceService workspace,
+	Action? livePreviewInvalidated = null)
+{
+	if (effect.EffectData == null)
+		throw new ArgumentException ($"{effect.EffectData} should not be null", nameof (effect));
 
-		using SimpleEffectDialog dialog = new (
-			parent,
-			effect.Name,
-			effect.Icon,
-			effect.EffectData,
-			localizer,
-			workspace);
+	using SimpleEffectDialog dialog = new (
+		parent,
+		effect.Name,
+		effect.Icon,
+		effect.EffectData,
+		localizer,
+		workspace);
 
-		// Hookup event handling for live preview.
-		dialog.EffectDataChanged += (o, e) => effect.EffectData.FirePropertyChanged (e.PropertyName);
+	// When the dialog's data changes, we need to update the EffectData object
+	// and signal that the live preview needs to be re-rendered.
+	dialog.EffectDataChanged += (o, e) => {
+		effect.EffectData.FirePropertyChanged (e.PropertyName);
+		livePreviewInvalidated?.Invoke ();
+	};
 
-		Gtk.ResponseType response = await dialog.RunAsync ();
+	Gtk.ResponseType response = await dialog.RunAsync ();
 
-		dialog.Destroy ();
+	dialog.Destroy ();
 
-		return Gtk.ResponseType.Ok == response;
-	}
+	return Gtk.ResponseType.Ok == response;
+}
 
 	public event PropertyChangedEventHandler? EffectDataChanged;
 

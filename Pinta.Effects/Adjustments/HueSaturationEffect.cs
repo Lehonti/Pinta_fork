@@ -35,8 +35,8 @@ public sealed class HueSaturationEffect : BaseEffect
 		EffectData = new HueSaturationData ();
 	}
 
-	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this, workspace);
+	public override Task<bool> LaunchConfiguration (Action? livePreviewInvalidated = null)
+		=> chrome.LaunchSimpleEffectDialog (this, workspace, livePreviewInvalidated);
 
 	private UnaryPixelOp CreateOptimalOp ()
 		=>

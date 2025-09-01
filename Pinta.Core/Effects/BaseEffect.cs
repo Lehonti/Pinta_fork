@@ -80,18 +80,22 @@ public abstract class BaseEffect
 	/// </summary>
 	public EffectData? EffectData { get; protected set; }
 
-	/// <summary>
-	/// Launches the configuration dialog for this effect/adjustment.
-	/// If IsConfigurable is true, the ConfigDialogResponse event will be invoked when the user accepts or cancels the dialog.
-	/// </summary>
-	/// <returns>Whether the user's response was positive or negative</returns>
-	public virtual Task<bool> LaunchConfiguration ()
-	{
-		if (IsConfigurable)
-			throw new NotImplementedException ($"{GetType ()} is marked as configurable, but has not implemented LaunchConfiguration");
+   /// <summary>
+/// Launches the configuration dialog for this effect/adjustment.
+/// If IsConfigurable is true, the ConfigDialogResponse event will be invoked when the user accepts or cancels the dialog.
+/// </summary>
+/// <param name="livePreviewInvalidated">
+/// An action that can be invoked by the configuration dialog to signal that the
+/// live preview needs to be re-rendered with the updated effect data.
+/// </param>
+/// <returns>Whether the user's response was positive or negative</returns>
+public virtual Task<bool> LaunchConfiguration (Action? livePreviewInvalidated = null)
+{
+	if (IsConfigurable)
+		throw new NotImplementedException ($"{GetType ()} is marked as configurable, but has not implemented LaunchConfiguration");
 
-		return Task.FromResult (true); // Placeholder
-	}
+	return Task.FromResult (true); // Placeholder
+}
 
 	#region Overridable Render Methods
 

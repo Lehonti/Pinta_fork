@@ -51,8 +51,8 @@ public sealed class BrightnessContrastEffect : BaseEffect
 		table_calculated = false;
 	}
 
-	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this, workspace);
+   public override Task<bool> LaunchConfiguration (Action? livePreviewInvalidated = null)
+	=> chrome.LaunchSimpleEffectDialog (this, workspace, livePreviewInvalidated);
 
 	private readonly record struct BrightnessContrastSettings (
 		Size canvasSize,

@@ -42,8 +42,8 @@ public sealed class GlowEffect : BaseEffect
 		this.services = services;
 	}
 
-	public override Task<bool> LaunchConfiguration ()
-		=> chrome.LaunchSimpleEffectDialog (this, workspace);
+	public override Task<bool> LaunchConfiguration (Action? livePreviewInvalidated = null)
+		=> chrome.LaunchSimpleEffectDialog (this, workspace, livePreviewInvalidated);
 
 	#region Algorithm Code Ported From PDN
 	public override void Render (ImageSurface src, ImageSurface dest, ReadOnlySpan<RectangleI> rois)
