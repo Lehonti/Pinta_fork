@@ -18,7 +18,6 @@ public sealed class ColorSurfaceWidget : Gtk.Box
 
 	public ColorSurfaceWidget (ColorPickerViewModel viewModel)
 	{
-		view_model = viewModel;
 		ColorPickerState initialState = viewModel.State;
 		LayoutSettings initialLayout = initialState.Layout;
 		int drawSize = initialLayout.PickerSurfaceDrawSize;
@@ -89,6 +88,7 @@ public sealed class ColorSurfaceWidget : Gtk.Box
 
 		// --- References to keep
 
+		view_model = viewModel;
 		picker_surface_selector_box = pickerSurfaceSelectorBox;
 		picker_surface_overlay = pickerSurfaceOverlay;
 		picker_surface = pickerSurface;
@@ -190,15 +190,15 @@ public sealed class ColorSurfaceWidget : Gtk.Box
 			drawSize.Width,
 			drawSize.Height);
 
-		Span<ColorBgra> data = surface.GetPixelData ();
+		Span<ColorBgra> pixelData = surface.GetPixelData ();
 
 		switch (state.SurfaceType) {
 			case ColorSurfaceType.HueAndSat:
-				DrawHueSatSurface (data, drawSize, radius, state);
+				DrawHueSatSurface (pixelData, drawSize, radius, state);
 				break;
 
 			case ColorSurfaceType.SatAndVal:
-				DrawSatValSurface (data, drawSize, state);
+				DrawSatValSurface (pixelData, drawSize, state);
 				break;
 
 			default:
@@ -211,7 +211,7 @@ public sealed class ColorSurfaceWidget : Gtk.Box
 		g.Paint ();
 	}
 
-	private static void DrawHueSatSurface (Span<ColorBgra> data, Size drawSize, int radius, ColorPickerState state)
+	private static void DrawHueSatSurface (Span<ColorBgra> pixelData, Size drawSize, int radius, ColorPickerState state)
 	{
 		int radiusSquared = radius * radius;
 		PointI center = new (radius, radius);
@@ -238,7 +238,8 @@ public sealed class ColorSurfaceWidget : Gtk.Box
 				double a = d < 1 ? d : 1;
 
 				Color c = Color.FromHsv (h, s, v, a);
-				data[drawSize.Width * y + x] = c.ToColorBgra ();
+
+				pixelData[drawSize.Width * y + x] = c.ToColorBgra ();
 			}
 		}
 	}

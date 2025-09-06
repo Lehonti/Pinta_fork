@@ -33,8 +33,7 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 			primarySelected: primarySelected,
 			livePaletteMode: livePaletteMode,
 			showSwatches: showSwatches,
-			paletteManager: viewModelNeedsPaletteManager ? paletteManager : null
-		);
+			paletteManager: viewModelNeedsPaletteManager ? paletteManager : null);
 
 		LayoutSettings initialLayout = viewModel.State.Layout;
 
@@ -110,7 +109,6 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 		// --- Initialization (Gtk.Dialog)
 
 		this.SetDefaultResponse (Gtk.ResponseType.Cancel);
-
 
 		// --- Live Palette Mode Setup ---
 		if (livePaletteMode) {
@@ -222,9 +220,8 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 
 		view_model.Dispose ();
 
-		if (live_palette_mode) {
+		if (live_palette_mode)
 			IsActivePropertyDefinition.Unnotify (this, ActiveWindowChangeHandler);
-		}
 
 		OnResponse -= ColorPickerDialog_OnResponse;
 	}

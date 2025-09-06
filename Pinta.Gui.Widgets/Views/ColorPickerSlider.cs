@@ -99,14 +99,14 @@ public sealed class ColorPickerSlider : Gtk.Box
 		UpdateValueDisplay (view_model.Value);
 	}
 
-	private void UpdateValueDisplay (double val)
+	private void UpdateValueDisplay (double value)
 	{
-		if (Math.Abs (slider_control.GetValue () - val) > 0.001)
-			slider_control.SetValue (val);
+		if (Math.Abs (slider_control.GetValue () - value) > 0.001)
+			slider_control.SetValue (value);
 
 		if (parent_window.GetFocus ()?.Parent != input_field) {
 			suppress_input_field_event = true;
-			input_field.SetText (Convert.ToInt32 (val).ToString (CultureInfo.InvariantCulture));
+			input_field.SetText (Convert.ToInt32 (value).ToString (CultureInfo.InvariantCulture));
 			suppress_input_field_event = false;
 		}
 

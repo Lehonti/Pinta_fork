@@ -26,17 +26,15 @@ public sealed class ColorDisplayWidget : Gtk.Box
 
 		int initialIndex = initialState.ActiveTarget == ColorTarget.Primary ? 0 : 1;
 
-		if (initialIndex < colorDisplays.Length) {
+		if (initialIndex < colorDisplays.Length)
 			colorDisplayList.SelectRow (colorDisplayList.GetRowAtIndex (initialIndex));
-		}
 
 		colorDisplayList.OnRowSelected += OnColorDisplayRowSelected;
 
 		if (initialState.Colors is PaletteColors) {
 			string label = Translations.GetString ("Click to switch between primary and secondary color.");
-			string shortcut_label = Translations.GetString ("Shortcut key");
-			// Shortcut 'X' is handled globally by the ColorPickerDialog
-			Gtk.Button colorDisplaySwap = new () { TooltipText = $"{label} {shortcut_label}: {"X"}" };
+			string shortcutLabel = Translations.GetString ("Shortcut key");
+			Gtk.Button colorDisplaySwap = new () { TooltipText = $"{label} {shortcutLabel}: {"X"}" };
 			colorDisplaySwap.SetIconName (Resources.StandardIcons.EditSwap);
 			colorDisplaySwap.OnClicked += (sender, args) => viewModel.SwapColors ();
 			Append (colorDisplaySwap);
@@ -65,14 +63,13 @@ public sealed class ColorDisplayWidget : Gtk.Box
 	{
 		LayoutSettings layout = state.Layout;
 
-		// Update Layout
 		Spacing = layout.Spacing;
+
 		int displaySize = layout.PaletteDisplaySize;
 
 		foreach (var display in color_displays)
 			display.SetSizeRequest (displaySize, displaySize);
 
-		// Update selection (if it changed in the model, e.g. via swap)
 		int expectedIndex = state.ActiveTarget == ColorTarget.Primary ? 0 : 1;
 		if (expectedIndex < color_displays.Length) {
 			var selectedRow = color_display_list.GetSelectedRow ();
@@ -81,7 +78,6 @@ public sealed class ColorDisplayWidget : Gtk.Box
 			}
 		}
 
-		// Redraw displays (the colors might have changed)
 		foreach (var display in color_displays)
 			display.QueueDraw ();
 	}

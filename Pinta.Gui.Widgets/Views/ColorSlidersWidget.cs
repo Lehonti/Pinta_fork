@@ -42,6 +42,7 @@ public sealed class ColorSlidersWidget : Gtk.Box
 		InitializeSliders (initialColor, parentWindow, sliderLayout, initialLayout.SliderWidth);
 
 		// --- Layout (Gtk.Box) ---
+
 		SetOrientation (Gtk.Orientation.Vertical);
 		Spacing = initialLayout.Spacing;
 
@@ -60,7 +61,7 @@ public sealed class ColorSlidersWidget : Gtk.Box
 		hex_entry = hexEntry;
 
 		// --- Event Subscription ---
-		main_view_model.StateChanged += OnMainViewModelStateChanged;
+		mainViewModel.StateChanged += OnMainViewModelStateChanged;
 	}
 
 	private void InitializeSliders (Color initialColor, Gtk.Window parentWindow, SliderLayoutSettings layout, int initialSliderWidth)
@@ -78,74 +79,70 @@ public sealed class ColorSlidersWidget : Gtk.Box
 			};
 		}
 
-		ColorPickerSliderViewModel vmHue = CreateViewModel (
+		ColorPickerSliderViewModel viewModelHue = CreateViewModel (
 			ColorChannel.Hue,
 			Translations.GetString ("Hue"),
 			360,
 			initialHsv.Hue,
 			value => main_view_model.SetColorFromHsv (hue: value));
 
-		slider_view_models.Add (ColorChannel.Hue, vmHue);
-
-		ColorPickerSliderViewModel vmSat = CreateViewModel (
+		ColorPickerSliderViewModel viewModelSaturation = CreateViewModel (
 			ColorChannel.Saturation,
 			Translations.GetString ("Sat"),
 			100,
 			initialHsv.Sat * 100.0,
 			value => main_view_model.SetColorFromHsv (sat: value / 100.0));
 
-		slider_view_models.Add (ColorChannel.Saturation, vmSat);
-
-		ColorPickerSliderViewModel vmVal = CreateViewModel (
+		ColorPickerSliderViewModel viewModelValue = CreateViewModel (
 			ColorChannel.Value,
 			Translations.GetString ("Value"),
 			100,
 			initialHsv.Val * 100.0,
 			value => main_view_model.SetColorFromHsv (value: value / 100.0));
 
-		slider_view_models.Add (ColorChannel.Value, vmVal);
-
-		ColorPickerSliderViewModel vmRed = CreateViewModel (
+		ColorPickerSliderViewModel viewModelRed = CreateViewModel (
 			ColorChannel.Red,
 			Translations.GetString ("Red"),
 			255,
 			initialColor.R * 255.0,
 			value => main_view_model.SetColorFromRgb (r: value / 255.0));
 
-		slider_view_models.Add (ColorChannel.Red, vmRed);
-
-		ColorPickerSliderViewModel vmGreen = CreateViewModel (
+		ColorPickerSliderViewModel viewModelGreen = CreateViewModel (
 			ColorChannel.Green,
 			Translations.GetString ("Green"),
 			255,
 			initialColor.G * 255.0,
 			value => main_view_model.SetColorFromRgb (g: value / 255.0));
 
-		slider_view_models.Add (ColorChannel.Green, vmGreen);
-
-		ColorPickerSliderViewModel vmBlue = CreateViewModel (
+		ColorPickerSliderViewModel viewModelBlue = CreateViewModel (
 			ColorChannel.Blue,
 			Translations.GetString ("Blue"),
 			255,
 			initialColor.B * 255.0,
 			value => main_view_model.SetColorFromRgb (b: value / 255.0));
 
-		slider_view_models.Add (ColorChannel.Blue, vmBlue);
-
-		ColorPickerSliderViewModel vmAlpha = CreateViewModel (
+		ColorPickerSliderViewModel viewModelAlpha = CreateViewModel (
 			ColorChannel.Alpha,
 			Translations.GetString ("Alpha"),
 			255,
 			initialColor.A * 255.0,
 			value => main_view_model.SetAlpha (alpha: value / 255.0));
 
-		slider_view_models.Add (ColorChannel.Alpha, vmAlpha);
+		slider_view_models.Add (ColorChannel.Hue, viewModelHue);
+		slider_view_models.Add (ColorChannel.Saturation, viewModelSaturation);
+		slider_view_models.Add (ColorChannel.Value, viewModelValue);
+
+		slider_view_models.Add (ColorChannel.Red, viewModelRed);
+		slider_view_models.Add (ColorChannel.Green, viewModelGreen);
+		slider_view_models.Add (ColorChannel.Blue, viewModelBlue);
+		slider_view_models.Add (ColorChannel.Alpha, viewModelAlpha);
 
 		void CreateView (ColorChannel channel, Func<Color, ColorGradient<Color>> gradientGenerator)
 		{
 			ColorPickerSlider view = new (slider_view_models[channel], layout, parentWindow, initialSliderWidth) {
 				GradientGenerator = gradientGenerator
 			};
+
 			slider_views.Add (channel, view);
 		}
 

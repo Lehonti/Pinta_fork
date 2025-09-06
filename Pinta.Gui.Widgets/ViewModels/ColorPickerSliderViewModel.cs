@@ -13,7 +13,6 @@ public sealed class ColorPickerSliderViewModel (ColorSliderSettings settings, do
 	{
 		double clampedValue = Math.Clamp (newValue, 0, Settings.MaxValue);
 		if (Math.Abs (Value - clampedValue) < 0.001) return;
-
 		Value = clampedValue;
 		OnValueChanged?.Invoke (Value);
 	}

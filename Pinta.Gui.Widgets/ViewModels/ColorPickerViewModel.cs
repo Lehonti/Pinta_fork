@@ -1,8 +1,8 @@
 using System;
-using Pinta.Core;
-using Cairo;
 using System.Diagnostics;
 using System.Linq;
+using Cairo;
+using Pinta.Core;
 
 namespace Pinta.Gui.Widgets;
 
@@ -28,15 +28,13 @@ public sealed class ColorPickerViewModel
 		palette_manager = paletteManager;
 		State = ColorPickerState.Default (initialColors, primarySelected, showSwatches);
 
-		// Only subscribe to external palette changes if in live mode.
 		if (live_palette_mode && palette_manager != null) {
 			palette_manager.PrimaryColorChanged += OnPalettePrimaryColorChanged;
 			palette_manager.SecondaryColorChanged += OnPaletteSecondaryColorChanged;
 		}
 	}
 
-	// Used for cleanup when the dialog closes.
-	public void Dispose ()
+	public void Dispose () // TODO: Implement IDisposable
 	{
 		if (live_palette_mode && palette_manager != null) {
 			palette_manager.PrimaryColorChanged -= OnPalettePrimaryColorChanged;
@@ -56,13 +54,19 @@ public sealed class ColorPickerViewModel
 		UpdateState (State.WithCurrentColor (color));
 	}
 
-	public void SetColorFromHsv (double? hue = null, double? sat = null, double? value = null)
+	public void SetColorFromHsv (
+		double? hue = null,
+		double? sat = null,
+		double? value = null)
 	{
-		Color newColor = State.CurrentColor.CopyHsv (hue: hue, sat: sat, value: value);
+		Color newColor = State.CurrentColor.CopyHsv (hue, sat, value);
 		SetCurrentColor (newColor);
 	}
 
-	public void SetColorFromRgb (double? r = null, double? g = null, double? b = null)
+	public void SetColorFromRgb (
+		double? r = null,
+		double? g = null,
+		double? b = null)
 	{
 		Color c = State.CurrentColor;
 		Color newColor = new (
@@ -133,24 +137,24 @@ public sealed class ColorPickerViewModel
 
 		switch (State.SurfaceType) {
 
-			case ColorSurfaceType.HueAndSat: {
+			case ColorSurfaceType.HueAndSat:
 
-					double rad = hsv.Hue * (Math.PI / 180.0);
-					double mag = hsv.Sat * radius;
-					double x = Math.Cos (rad) * mag;
-					double y = Math.Sin (rad) * mag;
+				double rad = hsv.Hue * (Math.PI / 180.0);
+				double mag = hsv.Sat * radius;
 
-					return new (x, -y);
-				}
+				return new (
+					X: Math.Cos (rad) * mag,
+					Y: -Math.Sin (rad) * mag);
 
-			case ColorSurfaceType.SatAndVal: {
+			case ColorSurfaceType.SatAndVal:
 
-					int size = radius * 2;
-					double x = hsv.Val * (size - 1);
-					double y = size - hsv.Sat * (size - 1);
+				int size = radius * 2;
 
-					return new (x - radius, y - radius);
-				}
+				double x = hsv.Val * (size - 1);
+				double y = size - hsv.Sat * (size - 1);
+
+				return new (x - radius, y - radius);
+
 			default:
 				throw new UnreachableException ();
 		}
@@ -166,10 +170,10 @@ public sealed class ColorPickerViewModel
 			case ColorSurfaceType.HueAndSat:
 
 				PointI center = new (radius, radius);
-				var vecCursor = cursor - center;
+				PointI vecCursor = cursor - center;
 
-				var hue = (Math.Atan2 (vecCursor.Y, -vecCursor.X) + Math.PI) / (2f * Math.PI) * 360f;
-				var sat = Math.Min (vecCursor.Magnitude () / radius, 1);
+				double hue = (Math.Atan2 (vecCursor.Y, -vecCursor.X) + Math.PI) / (2f * Math.PI) * 360f;
+				double sat = Math.Min (vecCursor.Magnitude () / radius, 1);
 
 				SetColorFromHsv (hue: hue, sat: sat);
 				break;
@@ -177,11 +181,11 @@ public sealed class ColorPickerViewModel
 
 			case ColorSurfaceType.SatAndVal:
 
-				var clampedX = Math.Clamp (cursor.X, 0, size - 1);
-				var clampedY = Math.Clamp (cursor.Y, 0, size - 1);
+				int clampedX = Math.Clamp (cursor.X, 0, size - 1);
+				int clampedY = Math.Clamp (cursor.Y, 0, size - 1);
 
-				var s = 1f - (double) clampedY / (size - 1);
-				var v = (double) clampedX / (size - 1);
+				double s = 1f - (double) clampedY / (size - 1);
+				double v = (double) clampedX / (size - 1);
 
 				SetColorFromHsv (sat: s, value: v);
 				break;

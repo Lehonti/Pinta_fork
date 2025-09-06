@@ -12,38 +12,53 @@ public sealed class ColorSwatchesWidget : Gtk.Box
 
 	public ColorSwatchesWidget (ColorPickerViewModel viewModel, PaletteManager paletteManager)
 	{
-		view_model = viewModel;
-		palette_manager = paletteManager;
-
 		const int SWATCH_WIDTH_REQUEST = 500;
 
 		int swatchHeight = PaletteWidget.SWATCH_SIZE * PaletteWidget.PALETTE_ROWS;
+
+		Gtk.GestureClick recentGesture = Gtk.GestureClick.New ();
+		recentGesture.SetButton (0);
+		recentGesture.OnPressed += (gesture, args) => {
+			viewModel.SetColorFromRecentSwatches (new PointD (args.X, args.Y));
+		};
+
+		Gtk.GestureClick paletteGesture = Gtk.GestureClick.New ();
+		paletteGesture.SetButton (0);
+		paletteGesture.OnPressed += (gesture, args) => {
+			viewModel.SetColorFromPaletteSwatches (new PointD (args.X, args.Y));
+		};
 
 		Gtk.DrawingArea swatchRecent = new () {
 			WidthRequest = SWATCH_WIDTH_REQUEST,
 			HeightRequest = swatchHeight,
 		};
 		swatchRecent.SetDrawFunc (DrawRecentSwatches);
+		swatchRecent.AddController (recentGesture);
 
 		Gtk.DrawingArea swatchPalette = new () {
 			WidthRequest = SWATCH_WIDTH_REQUEST,
 			HeightRequest = swatchHeight,
 		};
 		swatchPalette.SetDrawFunc (DrawPaletteSwatches);
+		swatchPalette.AddController (paletteGesture);
 
-		// --- Interaction Handling ---
-		// Set up click handlers on the drawing areas, delegating the logic to the ViewModel.
-		SetupInteraction (swatchRecent, view_model.SetColorFromRecentSwatches);
-		SetupInteraction (swatchPalette, view_model.SetColorFromPaletteSwatches);
+		// --- Initialization (Gtk.Box)
 
-		// --- Layout (Gtk.Box) ---
 		SetOrientation (Gtk.Orientation.Vertical);
+
 		Spacing = viewModel.State.Layout.Spacing;
+
 		Append (swatchRecent);
 		Append (swatchPalette);
 
+		// --- References to keep
+
+		view_model = viewModel;
+		palette_manager = paletteManager;
+
 		// --- Event Subscription ---
-		view_model.StateChanged += OnViewModelStateChanged;
+
+		viewModel.StateChanged += OnViewModelStateChanged;
 	}
 
 	private void OnViewModelStateChanged (object? sender, EventArgs e)
@@ -51,30 +66,28 @@ public sealed class ColorSwatchesWidget : Gtk.Box
 		Spacing = view_model.State.Layout.Spacing;
 	}
 
-	private static void SetupInteraction (Gtk.DrawingArea area, Action<PointD> onClick)
-	{
-		Gtk.GestureClick clickGesture = Gtk.GestureClick.New ();
-		clickGesture.SetButton (0);
-		clickGesture.OnPressed += (gesture, args) => {
-			onClick (new PointD (args.X, args.Y));
-		};
-		area.AddController (clickGesture);
-	}
-
 	private void DrawRecentSwatches (Gtk.DrawingArea area, Context g, int width, int height)
 	{
 		var recent = palette_manager.RecentlyUsedColors;
-		int recent_cols = palette_manager.MaxRecentlyUsedColor / PaletteWidget.PALETTE_ROWS;
+		int recentColors = palette_manager.MaxRecentlyUsedColor / PaletteWidget.PALETTE_ROWS;
 
-		RectangleD recent_palette_rect = new (
+		RectangleD recentPaletteBounds = new (
 			0,
 			0,
-			PaletteWidget.SWATCH_SIZE * recent_cols,
+			PaletteWidget.SWATCH_SIZE * recentColors,
 			PaletteWidget.SWATCH_SIZE * PaletteWidget.PALETTE_ROWS);
 
 		for (int i = 0; i < recent.Count; i++) {
-			RectangleD swatchBounds = PaletteWidget.GetSwatchBounds (palette_manager, i, recent_palette_rect, true);
-			g.FillRectangle (swatchBounds, recent.ElementAt (i));
+
+			RectangleD swatchBounds = PaletteWidget.GetSwatchBounds (
+				palette_manager,
+				i,
+				recentPaletteBounds,
+				true);
+
+			g.FillRectangle (
+				swatchBounds,
+				recent.ElementAt (i));
 		}
 	}
 
