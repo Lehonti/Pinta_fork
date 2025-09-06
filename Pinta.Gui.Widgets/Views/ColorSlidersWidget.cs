@@ -19,7 +19,6 @@ public sealed class ColorSlidersWidget : Gtk.Box
 		LayoutSettings initialLayout = mainViewModel.State.Layout;
 		Color initialColor = mainViewModel.State.CurrentColor;
 
-		// --- Hex Entry ---
 		Gtk.Entry hexEntry = new () {
 			Text_ = initialColor.ToHex (),
 			MaxWidthChars = 10,
@@ -35,14 +34,11 @@ public sealed class ColorSlidersWidget : Gtk.Box
 		hexBox.Append (hexLabel);
 		hexBox.Append (hexEntry);
 
-		// --- Sliders Initialization ---
-
 		SliderLayoutSettings sliderLayout = new (
 			PaddingWidth: LayoutSettings.CPS_PADDING_WIDTH,
 			PaddingHeight: LayoutSettings.CPS_PADDING_HEIGHT
 		);
 
-		// Initialize ViewModels and Views for all channels
 		InitializeSliders (initialColor, parentWindow, sliderLayout, initialLayout.SliderWidth);
 
 		// --- Layout (Gtk.Box) ---
@@ -82,65 +78,93 @@ public sealed class ColorSlidersWidget : Gtk.Box
 			};
 		}
 
-		// 1. Hue
-		var vmHue = CreateViewModel (ColorChannel.Hue, Translations.GetString ("Hue"), 360, initialHsv.Hue,
+		ColorPickerSliderViewModel vmHue = CreateViewModel (
+			ColorChannel.Hue,
+			Translations.GetString ("Hue"),
+			360,
+			initialHsv.Hue,
 			value => main_view_model.SetColorFromHsv (hue: value));
+
 		slider_view_models.Add (ColorChannel.Hue, vmHue);
 
-		// 2. Saturation
-		var vmSat = CreateViewModel (ColorChannel.Saturation, Translations.GetString ("Sat"), 100, initialHsv.Sat * 100.0,
+		ColorPickerSliderViewModel vmSat = CreateViewModel (
+			ColorChannel.Saturation,
+			Translations.GetString ("Sat"),
+			100,
+			initialHsv.Sat * 100.0,
 			value => main_view_model.SetColorFromHsv (sat: value / 100.0));
+
 		slider_view_models.Add (ColorChannel.Saturation, vmSat);
 
-		// 3. Value
-		var vmVal = CreateViewModel (ColorChannel.Value, Translations.GetString ("Value"), 100, initialHsv.Val * 100.0,
+		ColorPickerSliderViewModel vmVal = CreateViewModel (
+			ColorChannel.Value,
+			Translations.GetString ("Value"),
+			100,
+			initialHsv.Val * 100.0,
 			value => main_view_model.SetColorFromHsv (value: value / 100.0));
+
 		slider_view_models.Add (ColorChannel.Value, vmVal);
 
-		// 4. Red
-		var vmRed = CreateViewModel (ColorChannel.Red, Translations.GetString ("Red"), 255, initialColor.R * 255.0,
+		ColorPickerSliderViewModel vmRed = CreateViewModel (
+			ColorChannel.Red,
+			Translations.GetString ("Red"),
+			255,
+			initialColor.R * 255.0,
 			value => main_view_model.SetColorFromRgb (r: value / 255.0));
+
 		slider_view_models.Add (ColorChannel.Red, vmRed);
 
-		// 5. Green
-		var vmGreen = CreateViewModel (ColorChannel.Green, Translations.GetString ("Green"), 255, initialColor.G * 255.0,
+		ColorPickerSliderViewModel vmGreen = CreateViewModel (
+			ColorChannel.Green,
+			Translations.GetString ("Green"),
+			255,
+			initialColor.G * 255.0,
 			value => main_view_model.SetColorFromRgb (g: value / 255.0));
+
 		slider_view_models.Add (ColorChannel.Green, vmGreen);
 
-		// 6. Blue
-		var vmBlue = CreateViewModel (ColorChannel.Blue, Translations.GetString ("Blue"), 255, initialColor.B * 255.0,
+		ColorPickerSliderViewModel vmBlue = CreateViewModel (
+			ColorChannel.Blue,
+			Translations.GetString ("Blue"),
+			255,
+			initialColor.B * 255.0,
 			value => main_view_model.SetColorFromRgb (b: value / 255.0));
+
 		slider_view_models.Add (ColorChannel.Blue, vmBlue);
 
-		// 7. Alpha
-		var vmAlpha = CreateViewModel (ColorChannel.Alpha, Translations.GetString ("Alpha"), 255, initialColor.A * 255.0,
+		ColorPickerSliderViewModel vmAlpha = CreateViewModel (
+			ColorChannel.Alpha,
+			Translations.GetString ("Alpha"),
+			255,
+			initialColor.A * 255.0,
 			value => main_view_model.SetAlpha (alpha: value / 255.0));
+
 		slider_view_models.Add (ColorChannel.Alpha, vmAlpha);
 
-		// Helper to create the slider View
 		void CreateView (ColorChannel channel, Func<Color, ColorGradient<Color>> gradientGenerator)
 		{
-			var view = new ColorPickerSlider (slider_view_models[channel], layout, parentWindow, initialSliderWidth) {
-				// Define how the gradient is generated based on the current color context
+			ColorPickerSlider view = new (slider_view_models[channel], layout, parentWindow, initialSliderWidth) {
 				GradientGenerator = gradientGenerator
 			};
 			slider_views.Add (channel, view);
 		}
 
-		// Create Views with specific Gradient Generators
-		CreateView (ColorChannel.Hue, c => ColorGradient.Create (
-			startColor: c.CopyHsv (hue: 0),
-			endColor: c.CopyHsv (hue: 360),
-			startPosition: 0,
-			endPosition: 360,
-			new Dictionary<double, Color> {
-				[60] = c.CopyHsv (hue: 60),
-				[120] = c.CopyHsv (hue: 120),
-				[180] = c.CopyHsv (hue: 180),
-				[240] = c.CopyHsv (hue: 240),
-				[300] = c.CopyHsv (hue: 300),
-			}
-		));
+		CreateView (
+			ColorChannel.Hue,
+			c => ColorGradient.Create (
+				startColor: c.CopyHsv (hue: 0),
+				endColor: c.CopyHsv (hue: 360),
+				startPosition: 0,
+				endPosition: 360,
+				new Dictionary<double, Color> {
+					[60] = c.CopyHsv (hue: 60),
+					[120] = c.CopyHsv (hue: 120),
+					[180] = c.CopyHsv (hue: 180),
+					[240] = c.CopyHsv (hue: 240),
+					[300] = c.CopyHsv (hue: 300),
+				}
+			)
+		);
 
 		CreateView (ColorChannel.Saturation, c => ColorGradient.Create (c.CopyHsv (sat: 0), c.CopyHsv (sat: 1)));
 		CreateView (ColorChannel.Value, c => ColorGradient.Create (c.CopyHsv (value: 0), c.CopyHsv (value: 1)));
@@ -157,11 +181,7 @@ public sealed class ColorSlidersWidget : Gtk.Box
 
 	private void OnHexEntryChanged (Gtk.Editable sender, EventArgs _)
 	{
-		// Only process changes if the entry is focused (user input)
-		// We check the focus of the root window (the dialog).
 		if ((hex_entry.GetRoot () as Gtk.Window)?.GetFocus ()?.Parent != sender) return;
-
-		// Update the ViewModel. If the hex is invalid, the ViewModel ignores it.
 		main_view_model.SetColorFromHex (sender.GetText ());
 	}
 
@@ -171,18 +191,14 @@ public sealed class ColorSlidersWidget : Gtk.Box
 		HsvColor currentHsv = currentColor.ToHsv ();
 		LayoutSettings layout = state.Layout;
 
-		// Update Spacing
 		Spacing = layout.Spacing;
-		if (GetFirstChild () is Gtk.Box hexBox) {
+
+		if (GetFirstChild () is Gtk.Box hexBox)
 			hexBox.Spacing = layout.Spacing;
-		}
 
-		// Update Hex Entry (if not focused)
-		if ((hex_entry.GetRoot () as Gtk.Window)?.GetFocus ()?.Parent != hex_entry) {
+		if ((hex_entry.GetRoot () as Gtk.Window)?.GetFocus ()?.Parent != hex_entry)
 			hex_entry.SetText (currentColor.ToHex ());
-		}
 
-		// Update Slider ViewModels (This updates the VM's internal state based on the main VM, preventing feedback loops)
 		slider_view_models[ColorChannel.Hue].UpdateValueFromModel (currentHsv.Hue);
 		slider_view_models[ColorChannel.Saturation].UpdateValueFromModel (currentHsv.Sat * 100.0);
 		slider_view_models[ColorChannel.Value].UpdateValueFromModel (currentHsv.Val * 100.0);
@@ -191,9 +207,7 @@ public sealed class ColorSlidersWidget : Gtk.Box
 		slider_view_models[ColorChannel.Blue].UpdateValueFromModel (currentColor.B * 255.0);
 		slider_view_models[ColorChannel.Alpha].UpdateValueFromModel (currentColor.A * 255.0);
 
-		// Update Slider Views (triggers redraws and layout updates)
-		foreach (var view in slider_views.Values) {
+		foreach (var view in slider_views.Values)
 			view.Update (layout, currentColor);
-		}
 	}
 }

@@ -10,7 +10,6 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 
 	private readonly Gtk.Box top_box;
 
-	// These fields are kept to adhere to the instruction of minimizing mutation of fields after assignment.
 	private readonly ColorSwatchesWidget? color_swatches_widget;
 
 	private readonly Gtk.Button shrink_button;
@@ -26,29 +25,24 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 	{
 		live_palette_mode = livePaletteMode;
 
-		// Determine if swatches should be shown (not shown in live palette mode)
 		bool showSwatches = !livePaletteMode;
 
-		// --- Initialize ViewModel ---
-		// ViewModel needs the PaletteManager if in live mode OR if swatches are shown.
-		bool vmNeedsPaletteManager = livePaletteMode || showSwatches;
+		bool viewModelNeedsPaletteManager = livePaletteMode || showSwatches;
 		ColorPickerViewModel viewModel = new (
 			initialColors: adjustable,
 			primarySelected: primarySelected,
 			livePaletteMode: livePaletteMode,
 			showSwatches: showSwatches,
-			paletteManager: vmNeedsPaletteManager ? paletteManager : null
+			paletteManager: viewModelNeedsPaletteManager ? paletteManager : null
 		);
 
 		LayoutSettings initialLayout = viewModel.State.Layout;
 
-		// --- HeaderBar / TitleBar ---
 		Gtk.Button resetButton = new () { Label = Translations.GetString ("Reset Color") };
 		resetButton.OnClicked += (s, e) => viewModel.ResetColors ();
 
 		Gtk.Button shrinkButton = new ();
 		shrinkButton.OnClicked += OnShrinkButtonClicked;
-		// Initial icon is set based on initial state (IsSmallMode=false)
 		shrinkButton.SetIconName (Resources.StandardIcons.WindowMinimize);
 
 		Gtk.Button okButton = new () { Label = Translations.GetString ("OK") };
@@ -65,35 +59,24 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 		titleBar.PackEnd (cancelButton);
 		titleBar.SetShowTitleButtons (false);
 
-		// --- Widgets Initialization (The Views) ---
-
-		// 1. Color Display (Left)
 		ColorDisplayWidget colorDisplayWidget = new (viewModel);
-
-		// 2. Color Surface (Middle)
 		ColorSurfaceWidget colorSurfaceWidget = new (viewModel);
-
-		// 3. Sliders (Right)
-		// We pass 'this' (the dialog window) so sliders can check the focus state.
 		ColorSlidersWidget colorSlidersWidget = new (viewModel, this);
 
-		// 4. Swatches (Bottom)
 		ColorSwatchesWidget? colorSwatchesWidget = null;
+
 		if (showSwatches) {
 			colorSwatchesWidget = new (viewModel, paletteManager);
-			// Initial visibility depends on SmallMode (initially false)
 			colorSwatchesWidget.SetVisible (!viewModel.State.IsSmallMode);
 		}
 
 		// --- Layout Assembly ---
 
-		// Top part: Display, Surface, Sliders
 		Gtk.Box topBox = new () { Spacing = initialLayout.Spacing };
 		topBox.Append (colorDisplayWidget);
 		topBox.Append (colorSurfaceWidget);
 		topBox.Append (colorSlidersWidget);
 
-		// Main VBox
 		Gtk.Box mainVbox = new () { Spacing = initialLayout.Spacing };
 		mainVbox.SetOrientation (Gtk.Orientation.Vertical);
 		mainVbox.Append (topBox);
@@ -105,25 +88,29 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 		contentArea.SetAllMargins (initialLayout.Margins);
 		contentArea.Append (mainVbox);
 
-		// --- Initialization (Gtk.Window/Dialog) ---
+		// --- Initialization (Gtk.Widget)
+
+		Gtk.EventControllerKey swapColorsGesture = Gtk.EventControllerKey.New ();
+		swapColorsGesture.OnKeyPressed += SwapColorsGesture_OnKeyPressed;
+		AddController (swapColorsGesture);
+
+		// Wayland transparency workaround
+		SetOpacity (0.995f);
+
+		// --- Initialization (Gtk.Window)
 
 		SetTitlebar (titleBar);
 		Title = Translations.GetString (windowTitle);
 		TransientFor = parentWindow;
 		Modal = false; // As per original implementation
 		IconName = Resources.Icons.ImageResizeCanvas;
-		// Set small default size so it shrinks to fit content
 		DefaultWidth = 1;
 		DefaultHeight = 1;
+
+		// --- Initialization (Gtk.Dialog)
+
 		this.SetDefaultResponse (Gtk.ResponseType.Cancel);
 
-		// Wayland transparency workaround (from original code)
-		SetOpacity (0.995f);
-
-		// --- Keyboard Shortcuts ---
-		Gtk.EventControllerKey keyboard_gesture = Gtk.EventControllerKey.New ();
-		keyboard_gesture.OnKeyPressed += KeyboardGesture_OnKeyPressed;
-		AddController (keyboard_gesture);
 
 		// --- Live Palette Mode Setup ---
 		if (livePaletteMode) {
@@ -202,54 +189,43 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 		Close ();
 	}
 
-	private bool KeyboardGesture_OnKeyPressed (
+	private bool SwapColorsGesture_OnKeyPressed (
 		Gtk.EventControllerKey _,
 		Gtk.EventControllerKey.KeyPressedSignalArgs e)
 	{
 		// 'X' key swaps colors globally
-		if (e.GetKey ().Value == Gdk.Constants.KEY_x) {
-			view_model.SwapColors ();
-			return true;
-		}
-		return false;
+		if (e.GetKey ().Value != Gdk.Constants.KEY_x) return false;
+		view_model.SwapColors ();
+		return true;
 	}
-
-	// --- Live Palette Mode Handlers ---
 
 	void ActiveWindowChangeHandler (object? _, NotifySignalArgs __)
 	{
 		if (!live_palette_mode) return;
 
 		if (IsActive) {
-			// On Focus Gain: Increase opacity (Wayland workaround part 2)
 			SetOpacity (1.0f);
 			return;
 		}
 
-		// On Focus Loss: Decrease opacity and commit changes
 		SetOpacity (0.85f);
+
 		view_model.CommitLivePaletteChanges ();
 	}
-
-	// --- Dialog Cleanup ---
 
 	void ColorPickerDialog_OnResponse (Gtk.Dialog _, ResponseSignalArgs args)
 	{
 		Gtk.ResponseType response = (Gtk.ResponseType) args.ResponseId;
 
-		// Only perform cleanup on actual closing responses (OK, Cancel, or DeleteEvent/Close button)
 		if (response != Gtk.ResponseType.Cancel && response != Gtk.ResponseType.Ok && response != Gtk.ResponseType.DeleteEvent)
 			return;
 
-		// Cleanup ViewModel (unsubscribes from PaletteManager)
 		view_model.Dispose ();
 
-		// Cleanup Live Palette Handlers
 		if (live_palette_mode) {
 			IsActivePropertyDefinition.Unnotify (this, ActiveWindowChangeHandler);
 		}
 
-		// Ensure this handler doesn't run multiple times if multiple close signals are received.
 		OnResponse -= ColorPickerDialog_OnResponse;
 	}
 }

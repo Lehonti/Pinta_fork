@@ -1,8 +1,7 @@
-using Pinta.Core;
-using Gtk;
-using Cairo;
 using System;
 using System.Linq;
+using Cairo;
+using Pinta.Core;
 
 namespace Pinta.Gui.Widgets;
 
@@ -16,18 +15,16 @@ public sealed class ColorSwatchesWidget : Gtk.Box
 		view_model = viewModel;
 		palette_manager = paletteManager;
 
-		// The width request (500) is kept from the original code for identical behavior.
 		const int SWATCH_WIDTH_REQUEST = 500;
+
 		int swatchHeight = PaletteWidget.SWATCH_SIZE * PaletteWidget.PALETTE_ROWS;
 
-		// --- Recent Swatches ---
 		Gtk.DrawingArea swatchRecent = new () {
 			WidthRequest = SWATCH_WIDTH_REQUEST,
 			HeightRequest = swatchHeight,
 		};
 		swatchRecent.SetDrawFunc (DrawRecentSwatches);
 
-		// --- Current Palette Swatches ---
 		Gtk.DrawingArea swatchPalette = new () {
 			WidthRequest = SWATCH_WIDTH_REQUEST,
 			HeightRequest = swatchHeight,
@@ -51,30 +48,24 @@ public sealed class ColorSwatchesWidget : Gtk.Box
 
 	private void OnViewModelStateChanged (object? sender, EventArgs e)
 	{
-		// Update spacing when layout changes (Small/Big mode)
 		Spacing = view_model.State.Layout.Spacing;
-		// Visibility is handled by the parent ColorPickerDialog.
 	}
 
 	private static void SetupInteraction (Gtk.DrawingArea area, Action<PointD> onClick)
 	{
-		Gtk.GestureClick click_gesture = Gtk.GestureClick.New ();
-		click_gesture.SetButton (0);
-		click_gesture.OnPressed += (gesture, args) => {
-			// args.X and args.Y are relative to the DrawingArea itself.
+		Gtk.GestureClick clickGesture = Gtk.GestureClick.New ();
+		clickGesture.SetButton (0);
+		clickGesture.OnPressed += (gesture, args) => {
 			onClick (new PointD (args.X, args.Y));
 		};
-		area.AddController (click_gesture);
+		area.AddController (clickGesture);
 	}
-
-	// --- Drawing Logic ---
 
 	private void DrawRecentSwatches (Gtk.DrawingArea area, Context g, int width, int height)
 	{
 		var recent = palette_manager.RecentlyUsedColors;
 		int recent_cols = palette_manager.MaxRecentlyUsedColor / PaletteWidget.PALETTE_ROWS;
 
-		// Define the bounds of the recent palette area
 		RectangleD recent_palette_rect = new (
 			0,
 			0,
@@ -82,7 +73,6 @@ public sealed class ColorSwatchesWidget : Gtk.Box
 			PaletteWidget.SWATCH_SIZE * PaletteWidget.PALETTE_ROWS);
 
 		for (int i = 0; i < recent.Count; i++) {
-			// Use PaletteWidget utility to get the bounds of a specific swatch
 			RectangleD swatchBounds = PaletteWidget.GetSwatchBounds (palette_manager, i, recent_palette_rect, true);
 			g.FillRectangle (swatchBounds, recent.ElementAt (i));
 		}
@@ -90,7 +80,6 @@ public sealed class ColorSwatchesWidget : Gtk.Box
 
 	private void DrawPaletteSwatches (Gtk.DrawingArea area, Context g, int width, int height)
 	{
-		// Define the bounds of the current palette area
 		RectangleD paletteRect = new (
 			0,
 			0,
@@ -100,7 +89,6 @@ public sealed class ColorSwatchesWidget : Gtk.Box
 		Palette currentPalette = palette_manager.CurrentPalette;
 
 		for (int i = 0; i < currentPalette.Colors.Count; i++) {
-			// Use PaletteWidget utility to get the bounds of a specific swatch
 			RectangleD swatchBounds = PaletteWidget.GetSwatchBounds (palette_manager, i, paletteRect);
 			g.FillRectangle (swatchBounds, currentPalette.Colors[i]);
 		}
