@@ -4,8 +4,6 @@ using Cairo;
 
 namespace Pinta.Gui.Widgets;
 
-// --- Color Selection Models ---
-
 public enum ColorTarget
 {
 	Primary,
@@ -15,33 +13,30 @@ public enum ColorTarget
 public static class ColorTargetExtensions
 {
 	public static ColorTarget FromIndex (int index)
-	    => index switch {
-		    0 => ColorTarget.Primary,
-		    1 => ColorTarget.Secondary,
-		    _ => throw new ArgumentOutOfRangeException (nameof (index), $"Invalid color target index: {index}")
-	    };
+		=> index switch {
+			0 => ColorTarget.Primary,
+			1 => ColorTarget.Secondary,
+			_ => throw new ArgumentOutOfRangeException (nameof (index), $"Invalid color target index: {index}")
+		};
 }
 
-// Discriminated Union (Principle 2.4).
 public abstract record ColorPick
 {
 	protected ColorPick () { }
 
 	internal Color GetTargetedColor (ColorTarget target)
-	    // (Implementation omitted for brevity, identical to previous response)
-	    => this switch {
-		    SingleColor sc => target == ColorTarget.Primary ? sc.Color : throw new InvalidOperationException (),
-		    PaletteColors pc => target == ColorTarget.Primary ? pc.Primary : pc.Secondary,
-		    _ => throw new UnreachableException ()
-	    };
+		 => this switch {
+			 SingleColor sc => target == ColorTarget.Primary ? sc.Color : throw new InvalidOperationException (),
+			 PaletteColors pc => target == ColorTarget.Primary ? pc.Primary : pc.Secondary,
+			 _ => throw new UnreachableException ()
+		 };
 
 	internal ColorPick WithTargetedColor (ColorTarget target, Color color)
-	     // (Implementation omitted for brevity, identical to previous response)
-	     => this switch {
-		     SingleColor sc => target == ColorTarget.Primary ? sc with { Color = color } : throw new InvalidOperationException (),
-		     PaletteColors pc => target == ColorTarget.Primary ? pc with { Primary = color } : pc with { Secondary = color },
-		     _ => throw new UnreachableException ()
-	     };
+		=> this switch {
+			SingleColor sc => target == ColorTarget.Primary ? sc with { Color = color } : throw new InvalidOperationException (),
+			PaletteColors pc => target == ColorTarget.Primary ? pc with { Primary = color } : pc with { Secondary = color },
+			_ => throw new UnreachableException ()
+		};
 }
 
 public sealed record SingleColor (Color Color) : ColorPick;
@@ -51,8 +46,6 @@ public sealed record PaletteColors (Color Primary, Color Secondary) : ColorPick
 	public PaletteColors Swapped () => new (Secondary, Primary);
 }
 
-// --- Layout and Configuration ---
-
 public enum ColorSurfaceType
 {
 	HueAndSat,
@@ -61,7 +54,6 @@ public enum ColorSurfaceType
 
 public sealed record LayoutSettings (int Margins, int PaletteDisplaySize, int PickerSurfaceRadius, int SliderWidth, int Spacing)
 {
-	// Constants (Implementation omitted for brevity, identical to previous response)
 	public const int PICKER_SURFACE_PADDING = 10;
 	public const int PALETTE_DISPLAY_BORDER_THICKNESS = 3;
 	public const int CPS_PADDING_HEIGHT = 10;
@@ -73,19 +65,19 @@ public sealed record LayoutSettings (int Margins, int PaletteDisplaySize, int Pi
 	public static LayoutSettings Small { get; } = new (6, 40, 75, 150, 2);
 }
 
-// --- Immutable State Model (Principle 1.1) ---
-
 public sealed record ColorPickerState (
-    ColorPick Colors,
-    ColorTarget ActiveTarget,
-    ColorSurfaceType SurfaceType,
-    bool IsSmallMode,
-    bool ShowValueOnHueSat,
-    bool ShowSwatches
-)
+	ColorPick Colors,
+	ColorTarget ActiveTarget,
+	ColorSurfaceType SurfaceType,
+	bool IsSmallMode,
+	bool ShowValueOnHueSat,
+	bool ShowSwatches)
 {
-	public Color CurrentColor => Colors.GetTargetedColor (ActiveTarget);
-	public LayoutSettings Layout => IsSmallMode ? LayoutSettings.Small : LayoutSettings.Big;
+	public Color CurrentColor
+		=> Colors.GetTargetedColor (ActiveTarget);
+
+	public LayoutSettings Layout
+		=> IsSmallMode ? LayoutSettings.Small : LayoutSettings.Big;
 
 	public ColorPickerState WithCurrentColor (Color color)
 	{
@@ -95,9 +87,7 @@ public sealed record ColorPickerState (
 
 	public ColorPickerState SwapColors ()
 	{
-		if (Colors is PaletteColors pc) {
-			return this with { Colors = pc.Swapped () };
-		}
-		return this;
+		if (Colors is not PaletteColors pc) return this;
+		return this with { Colors = pc.Swapped () };
 	}
 }
