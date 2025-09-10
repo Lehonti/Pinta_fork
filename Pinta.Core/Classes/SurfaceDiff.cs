@@ -43,7 +43,6 @@ public sealed class SurfaceDiff
 	private readonly RectangleI bounds;
 	private readonly ColorBgra[] pixels;
 
-	#region Constructors
 	private SurfaceDiff (BitArray bitmask, RectangleI bounds, ColorBgra[] pixels)
 	{
 		this.bitmask = bitmask;
@@ -72,100 +71,21 @@ public sealed class SurfaceDiff
 #endif
 
 		// STEP 1 - Find the bounds of the changed pixels.
-		RectangleI diffBounds = RectangleI.FromLTRB (originalSize.Width + 1, originalSize.Height + 1, -1, -1); // TODO: Inverted rectangle! Should refactor
-		object diffBoundsLock = new ();
+		RectangleI? differenceBounds = CalculateDifferenceBounds (original, updated, originalSize);
 
-		// Split up the work among several threads, each of which processes one row at a time
-		// and updates the bounds of the changed pixels it has seen so far. At the end, the
-		// results from each thread are merged together to find the overall bounds of the changed
-		// pixels.
-		Parallel.For (
-			0,
-			originalSize.Height,
-			() => RectangleI.FromLTRB (originalSize.Width + 1, originalSize.Height + 1, -1, -1), // TODO: Inverted rectangle! Should refactor
-			(row, loop, newBounds) => {
-
-				int offset = row * originalSize.Width;
-
-				ReadOnlySpan<ColorBgra> originalRow =
-					original
-					.GetReadOnlyPixelData ()
-					.Slice (offset, originalSize.Width);
-
-				Span<ColorBgra> updatedRow =
-					updated
-					.GetPixelData ()
-					.Slice (offset, originalSize.Width);
-
-				bool changeInRow = false;
-				int newLeft = newBounds.Left;
-				int newRight = newBounds.Right;
-
-				for (int i = 0; i < originalSize.Width; ++i) {
-					if (originalRow[i] == updatedRow[i]) continue;
-					changeInRow = true;
-					newLeft = Math.Min (newLeft, i);
-					newRight = Math.Max (newRight, i);
-				}
-
-				int newTop =
-					changeInRow
-					? Math.Min (newBounds.Top, row)
-					: newBounds.Top;
-
-				int newBottom =
-					changeInRow
-					? Math.Max (newBounds.Bottom, row)
-					: newBounds.Bottom;
-
-				return RectangleI.FromLTRB (newLeft, newTop, newRight, newBottom);
-			},
-			my_bounds => {
-				lock (diffBoundsLock) {
-					diffBounds = diffBounds.Union (my_bounds);
-				}
-			}
-		);
-
+		// No changes were detected, so the variable was never set
+		if (!differenceBounds.HasValue)
+			return null;
 #if DEBUG_DIFF
 		Console.WriteLine ("Truncated surface size: {0}x{1}", bounds.Width, bounds.Height);
 #endif
 
+		RectangleI finalBounds = differenceBounds.Value;
+
 		// STEP 2 - Create a bitarray of whether each pixel in the bounds has changed, and count
 		// how many changed pixels we need to store.
 
-		BitArray bitmask = new (diffBounds.Width * diffBounds.Height);
-
-		int index = 0;
-		int changeCount = 0;
-
-		int bottom = diffBounds.Bottom;
-		int right = diffBounds.Right;
-		int boundsX = diffBounds.X;
-		int boundsY = diffBounds.Y;
-
-		for (int y = boundsY; y <= bottom; ++y) {
-
-			int offset = y * originalSize.Width;
-
-			ReadOnlySpan<ColorBgra> originalRow =
-				original
-				.GetReadOnlyPixelData ()
-				.Slice (offset, originalSize.Width);
-
-			Span<ColorBgra> updatedRow =
-				updated
-				.GetPixelData ()
-				.Slice (offset, originalSize.Width);
-
-			for (int x = boundsX; x <= right; ++x) {
-				bool changed = originalRow[x] != updatedRow[x];
-				bitmask[index++] = changed;
-				if (changed) {
-					changeCount++;
-				}
-			}
-		}
+		(int changeCount, BitArray bitmask) = CalculateChanges (original, updated, finalBounds, originalSize);
 
 		float savings = 100 - changeCount / (float) (originalSize.Width * originalSize.Height) * 100;
 #if DEBUG_DIFF
@@ -184,14 +104,14 @@ public sealed class SurfaceDiff
 
 		ReadOnlySpan<ColorBgra> originalData = original.GetReadOnlyPixelData ();
 		int maskIndex = 0;
-
+		int bottom = finalBounds.Bottom;
+		int right = finalBounds.Right;
 		int pixelsIndex = 0;
-		for (int y = boundsY; y <= bottom; ++y) {
-			int originalIndex = boundsX + y * originalSize.Width;
-			for (int x = boundsX; x <= right; ++x) {
-				if (bitmask[maskIndex++]) {
-					pixels[pixelsIndex++] = originalData[y * originalSize.Width + x];
-				}
+		for (int y = finalBounds.Y; y <= bottom; ++y) {
+			int originalIndex = finalBounds.X + y * originalSize.Width;
+			for (int x = finalBounds.X; x <= right; ++x) {
+				if (!bitmask[maskIndex++]) continue;
+				pixels[pixelsIndex++] = originalData[y * originalSize.Width + x];
 			}
 		}
 
@@ -200,11 +120,122 @@ public sealed class SurfaceDiff
 		System.Console.WriteLine ("SurfaceDiff time: " + timer.ElapsedMilliseconds);
 #endif
 
-		return new SurfaceDiff (bitmask, diffBounds, pixels);
+		return new (bitmask, finalBounds, pixels);
 	}
-	#endregion
 
-	#region Public Methods
+	private static (int ChangeCount, BitArray BitMask) CalculateChanges (
+		ImageSurface original,
+		ImageSurface updated,
+		RectangleI bounds,
+		Size size)
+	{
+		BitArray bitmask = new (bounds.Width * bounds.Height);
+		int result = 0;
+
+		int index = 0;
+
+		int bottom = bounds.Bottom;
+		int right = bounds.Right;
+		int boundsX = bounds.X;
+		int boundsY = bounds.Y;
+
+		for (int y = boundsY; y <= bottom; ++y) {
+
+			int offset = y * size.Width;
+
+			ReadOnlySpan<ColorBgra> originalRow =
+				original
+				.GetReadOnlyPixelData ()
+				.Slice (offset, size.Width);
+
+			Span<ColorBgra> updatedRow =
+				updated
+				.GetPixelData ()
+				.Slice (offset, size.Width);
+
+			for (int x = boundsX; x <= right; ++x) {
+				bool changed = originalRow[x] != updatedRow[x];
+				bitmask[index++] = changed;
+				if (!changed) continue;
+				result++;
+			}
+		}
+
+		return (result, bitmask);
+	}
+
+	private static RectangleI? CalculateDifferenceBounds (ImageSurface original, ImageSurface updated, Size size)
+	{
+		RectangleI? diffBounds = null;
+
+		object diffBoundsLock = new ();
+
+		// Split up the work among several threads, each of which processes one row at a time
+		// and updates the bounds of the changed pixels it has seen so far. At the end, the
+		// results from each thread are merged together to find the overall bounds of the changed
+		// pixels.
+		Parallel.For (
+			0,
+			size.Height,
+			() => (RectangleI?) null,
+			(row, loop, newBounds) => {
+
+				int offset = row * size.Width;
+
+				ReadOnlySpan<ColorBgra> originalRow =
+					original
+					.GetReadOnlyPixelData ()
+					.Slice (offset, size.Width);
+
+				Span<ColorBgra> updatedRow =
+					updated
+					.GetPixelData ()
+					.Slice (offset, size.Width);
+
+				// These variables start in an 'inverted' state
+				// (i.e. left > right), but their values are only
+				// used if a change in the updated row was detected,
+				// at which point these values are updated, and
+				// then it becomes left <= right
+				int rowLeft = size.Width;
+				int rowRight = -1;
+
+				bool changeInRow = false;
+
+				for (int i = 0; i < size.Width; ++i) {
+					if (originalRow[i] == updatedRow[i]) continue;
+					changeInRow = true;
+					rowLeft = Math.Min (rowLeft, i);
+					rowRight = Math.Max (rowRight, i);
+				}
+
+				if (!changeInRow)
+					return newBounds;
+
+				RectangleI newRect = RectangleI.FromLTRB (rowLeft, row, rowRight, row);
+
+				return
+					newBounds.HasValue
+					? newBounds.Value.Union (newRect)
+					: newRect;
+			},
+			myBounds => {
+
+				if (!myBounds.HasValue)
+					return;
+
+				lock (diffBoundsLock) {
+					diffBounds =
+						(diffBounds.HasValue)
+						? diffBounds.Value.Union (myBounds.Value)
+						: myBounds;
+				}
+			}
+		);
+
+		return diffBounds;
+	}
+
 	public void Apply (ImageSurface dst)
 	{
 		ApplyAndSwap (dst, false);
@@ -218,9 +249,6 @@ public sealed class SurfaceDiff
 	public RectangleI GetBounds ()
 		=> bounds;
 
-	#endregion
-
-	#region Private Methods
 	private void ApplyAndSwap (ImageSurface destination, bool swap)
 	{
 		destination.Flush ();
@@ -253,5 +281,4 @@ public sealed class SurfaceDiff
 
 		destination.MarkDirty ();
 	}
-	#endregion
 }
