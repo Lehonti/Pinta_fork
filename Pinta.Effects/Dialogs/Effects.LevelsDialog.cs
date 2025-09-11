@@ -90,14 +90,14 @@ public partial class LevelsDialog : Gtk.Dialog
 	private readonly HistogramWidget histogram_output;
 	private readonly IChromeService chrome;
 	private readonly IWorkspaceService workspace;
-	private readonly PaletteManager palette;
+	private readonly IPaletteService palette;
 
 	public LevelsData EffectData { get; }
 
 	public LevelsDialog (
 		IChromeService chrome,
 		IWorkspaceService workspace,
-		PaletteManager palette,
+		IPaletteService palette,
 		LevelsData effectData)
 	{
 		const int SPACING = 6;
@@ -629,20 +629,27 @@ public partial class LevelsDialog : Gtk.Dialog
 		ColorPanelWidget panel = (ColorPanelWidget?) controller.GetWidget () ??
 				throw new Exception ("Controller widget should be non-null");
 
-		using var cpd = new ColorPickerDialog (
+		using ColorPickerDialog cpd = new (
 			parentWindow: chrome.MainWindow,
 			palette: palette,
 			adjustable: new SingleColor (panel.CairoColor),
 			primarySelected: true,
 			livePalette: false,
-			windowTitle: Translations.GetString ("Choose Color")
-		);
+			windowTitle: Translations.GetString ("Choose Color"));
 
-		var response = cpd.RunBlocking ();
+		Gtk.ResponseType response = cpd.RunBlocking ();
+
+		var d1 = Gtk.Dialog.New ();
+		d1.SetChild (Gtk.Label.New (cpd.Colors.GetType ().ToString ()));
+		d1.RunBlocking ();
+
+		var d2 = Gtk.Dialog.New ();
+		d2.SetChild (Gtk.Label.New (response.ToString ()));
+		d2.RunBlocking ();
+
 		if (response == Gtk.ResponseType.Ok) {
 			if (cpd.Colors is SingleColor singleColor) {
 				ColorBgra col = singleColor.Color.ToColorBgra ();
-
 				if (panel == colorpanel_in_low) {
 					Levels.ColorInLow = col;
 				} else if (panel == colorpanel_in_high) {

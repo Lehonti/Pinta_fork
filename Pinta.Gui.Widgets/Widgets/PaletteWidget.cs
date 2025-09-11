@@ -10,7 +10,7 @@ internal static class PaletteWidget
 	internal const int PALETTE_MARGIN = 10;
 
 	public static int GetSwatchAtLocation (
-		PaletteManager palette,
+		IPaletteService palette,
 		PointD point,
 		RectangleD palette_bounds,
 		bool recentColorPalette = false)
@@ -29,7 +29,7 @@ internal static class PaletteWidget
 	}
 
 	public static RectangleD GetSwatchBounds (
-		PaletteManager palette,
+		IPaletteService palette,
 		int index,
 		RectangleD palette_bounds,
 		bool recentColorPalette = false)
@@ -42,7 +42,7 @@ internal static class PaletteWidget
 		// 4 | 5 | 6 | 7
 
 		// First we need to figure out what row and column the color is
-		int recent_cols = palette.MaxRecentlyUsedColor / PALETTE_ROWS;
+		int recent_cols = palette.MaxRecentlyUsedColors / PALETTE_ROWS;
 		int row = recentColorPalette ? index / recent_cols : index % PALETTE_ROWS;
 		int col = recentColorPalette ? index % recent_cols : index / PALETTE_ROWS;
 

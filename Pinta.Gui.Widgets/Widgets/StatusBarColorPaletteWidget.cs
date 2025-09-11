@@ -259,7 +259,7 @@ public sealed class StatusBarColorPaletteWidget : Gtk.DrawingArea
 		int width = e.Width;
 
 		// Store the bounds allocated for our palette
-		int recent_cols = palette.MaxRecentlyUsedColor / PaletteWidget.PALETTE_ROWS;
+		int recent_cols = palette.MaxRecentlyUsedColors / PaletteWidget.PALETTE_ROWS;
 
 		recent_palette_rect = new RectangleD (50, 2, PaletteWidget.SWATCH_SIZE * recent_cols, PaletteWidget.SWATCH_SIZE * PaletteWidget.PALETTE_ROWS);
 		palette_rect = new RectangleD (

@@ -15,6 +15,9 @@ internal sealed class MockPalette : IPaletteService
 	public ReadOnlyCollection<Color> RecentlyUsedColors
 		=> throw new NotImplementedException ();
 
+	public int MaxRecentlyUsedColors
+		=> throw new NotImplementedException ();
+
 #pragma warning disable CS0067 // The event 'MockPalette.PrimaryColorChanged' is never used
 	public event EventHandler? PrimaryColorChanged;
 	public event EventHandler? SecondaryColorChanged;

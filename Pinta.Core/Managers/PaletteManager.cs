@@ -34,6 +34,7 @@ namespace Pinta.Core;
 
 public interface IPaletteService
 {
+	int MaxRecentlyUsedColors { get; }
 	Color PrimaryColor { get; set; }
 	Color SecondaryColor { get; set; }
 	Palette CurrentPalette { get; }
@@ -58,8 +59,6 @@ public sealed class PaletteManager : IPaletteService
 		set => SetColor (true, value, true);
 	}
 
-	public int MaxRecentlyUsedColor => MAX_RECENT_COLORS;
-
 	public ReadOnlyCollection<Color> RecentlyUsedColors { get; }
 
 	public Color SecondaryColor {
@@ -68,6 +67,9 @@ public sealed class PaletteManager : IPaletteService
 	}
 
 	public Palette CurrentPalette { get; }
+
+	public int MaxRecentlyUsedColors
+		=> MAX_RECENT_COLORS;
 
 	private readonly SettingsManager settings;
 	private readonly PaletteFormatManager palette_formats;

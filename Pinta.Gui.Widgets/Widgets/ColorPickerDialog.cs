@@ -67,7 +67,7 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 
 	// hex + sliders
 	private readonly Gtk.Entry hex_entry;
-	private readonly PaletteManager palette;
+	private readonly IPaletteService palette;
 	private int slider_width = DEFAULT_SLIDER_WIDTH;
 	private readonly Gtk.Box sliders_box;
 	private readonly ColorPickerSlider hue_slider;
@@ -189,7 +189,7 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 	/// <param name="windowTitle">Title of the dialog.</param>
 	public ColorPickerDialog (
 		Gtk.Window? parentWindow,
-		PaletteManager palette,
+		IPaletteService palette,
 		ColorPick adjustable,
 		bool primarySelected, // TODO: Get rid of this
 		bool livePalette,
@@ -694,16 +694,16 @@ public sealed class ColorPickerDialog : Gtk.Dialog
 	void SwatchRecentDraw (Gtk.DrawingArea area, Context g, int width, int height)
 	{
 		var recent = palette.RecentlyUsedColors;
-		int recent_cols = palette.MaxRecentlyUsedColor / PaletteWidget.PALETTE_ROWS;
+		int recent_cols = palette.MaxRecentlyUsedColors / PaletteWidget.PALETTE_ROWS;
 
-		RectangleD recent_palette_rect = new (
+		RectangleD recentPaletteBounds = new (
 			0,
 			0,
 			PaletteWidget.SWATCH_SIZE * recent_cols,
 			PaletteWidget.SWATCH_SIZE * PaletteWidget.PALETTE_ROWS);
 
 		for (int i = 0; i < recent.Count; i++)
-			g.FillRectangle (PaletteWidget.GetSwatchBounds (palette, i, recent_palette_rect, true), recent.ElementAt (i));
+			g.FillRectangle (PaletteWidget.GetSwatchBounds (palette, i, recentPaletteBounds, true), recent.ElementAt (i));
 	}
 
 	void SwatchPaletteDraw (Gtk.DrawingArea area, Context g, int width, int height)

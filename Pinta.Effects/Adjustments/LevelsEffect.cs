@@ -32,13 +32,13 @@ public sealed class LevelsEffect : BaseEffect
 
 	private readonly IChromeService chrome;
 	private readonly IWorkspaceService workspace;
-	private readonly PaletteManager palette;
+	private readonly IPaletteService palette;
 
 	public LevelsEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
 		workspace = services.GetService<IWorkspaceService> ();
-		palette = services.GetService<PaletteManager> ();
+		palette = services.GetService<IPaletteService> ();
 
 		EffectData = new LevelsData ();
 	}
