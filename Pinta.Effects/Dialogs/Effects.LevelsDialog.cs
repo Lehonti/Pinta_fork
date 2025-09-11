@@ -619,7 +619,7 @@ public partial class LevelsDialog : Gtk.Dialog
 		MaskChanged ();
 	}
 
-	private void HandleColorPanelButtonPressEvent (
+	private async void HandleColorPanelButtonPressEvent (
 		Gtk.GestureClick controller,
 		Gtk.GestureClick.PressedSignalArgs args)
 	{
@@ -630,22 +630,14 @@ public partial class LevelsDialog : Gtk.Dialog
 				throw new Exception ("Controller widget should be non-null");
 
 		using ColorPickerDialog cpd = new (
-			parentWindow: chrome.MainWindow,
+			parentWindow: this,
 			palette: palette,
 			adjustable: new SingleColor (panel.CairoColor),
 			primarySelected: true,
 			livePalette: false,
 			windowTitle: Translations.GetString ("Choose Color"));
 
-		Gtk.ResponseType response = cpd.RunBlocking ();
-
-		var d1 = Gtk.Dialog.New ();
-		d1.SetChild (Gtk.Label.New (cpd.Colors.GetType ().ToString ()));
-		d1.RunBlocking ();
-
-		var d2 = Gtk.Dialog.New ();
-		d2.SetChild (Gtk.Label.New (response.ToString ()));
-		d2.RunBlocking ();
+		Gtk.ResponseType response = await cpd.RunAsync ();
 
 		if (response == Gtk.ResponseType.Ok) {
 			if (cpd.Colors is SingleColor singleColor) {
