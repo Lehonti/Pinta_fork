@@ -90,12 +90,14 @@ public partial class LevelsDialog : Gtk.Dialog
 	private readonly HistogramWidget histogram_output;
 	private readonly IChromeService chrome;
 	private readonly IWorkspaceService workspace;
+	private readonly PaletteManager palette;
 
 	public LevelsData EffectData { get; }
 
 	public LevelsDialog (
 		IChromeService chrome,
 		IWorkspaceService workspace,
+		PaletteManager palette,
 		LevelsData effectData)
 	{
 		const int SPACING = 6;
@@ -249,6 +251,7 @@ public partial class LevelsDialog : Gtk.Dialog
 
 		this.chrome = chrome;
 		this.workspace = workspace;
+		this.palette = palette;
 
 		EffectData = effectData;
 
@@ -626,41 +629,47 @@ public partial class LevelsDialog : Gtk.Dialog
 		ColorPanelWidget panel = (ColorPanelWidget?) controller.GetWidget () ??
 				throw new Exception ("Controller widget should be non-null");
 
-		var ccd = Gtk.ColorChooserDialog.New (Translations.GetString ("Choose Color"), chrome.MainWindow);
-		ccd.UseAlpha = true;
-		ccd.SetColor (panel.CairoColor);
+		using var cpd = new ColorPickerDialog (
+			parentWindow: chrome.MainWindow,
+			palette: palette,
+			adjustable: new SingleColor (panel.CairoColor),
+			primarySelected: true,
+			livePalette: false,
+			windowTitle: Translations.GetString ("Choose Color")
+		);
 
-		var response = ccd.RunBlocking ();
+		var response = cpd.RunBlocking ();
 		if (response == Gtk.ResponseType.Ok) {
-			ccd.GetColor (out var cairo_color);
-			ColorBgra col = cairo_color.ToColorBgra ();
+			if (cpd.Colors is SingleColor singleColor) {
+				ColorBgra col = singleColor.Color.ToColorBgra ();
 
-			if (panel == colorpanel_in_low) {
-				Levels.ColorInLow = col;
-			} else if (panel == colorpanel_in_high) {
-				Levels.ColorInHigh = col;
-			} else if (panel == colorpanel_out_low) {
-				Levels.ColorOutLow = col;
-				//                } else if (panel == colorpanelOutMid) {
-				//                    ColorBgra lo = Levels.ColorInLow;
-				//                    ColorBgra md = histogramInput.Histogram.GetMeanColor();
-				//                    ColorBgra hi = Levels.ColorInHigh;
-				//                    ColorBgra out_lo = Levels.ColorOutLow;
-				//                    ColorBgra out_hi = Levels.ColorOutHigh;
-				//
-				//                    for (int i = 0; i < 3; i++) {
-				//                        double logA = (col[i] - out_lo[i]) / (out_hi[i] - out_lo[i]);
-				//                        double logBase = (md[i] - lo[i]) / (hi[i] - lo[i]);
-				//                        double logVal = (logBase == 1.0) ? 0.0 : Math.Log (logA, logBase);
-				//
-				//                        Levels.SetGamma(i, (float)Utility.Clamp (logVal, 0.1, 10.0));
-				//                    }
-			} else if (panel == colorpanel_out_high) {
-				Levels.ColorOutHigh = col;
+				if (panel == colorpanel_in_low) {
+					Levels.ColorInLow = col;
+				} else if (panel == colorpanel_in_high) {
+					Levels.ColorInHigh = col;
+				} else if (panel == colorpanel_out_low) {
+					Levels.ColorOutLow = col;
+					//                } else if (panel == colorpanelOutMid) {
+					//                    ColorBgra lo = Levels.ColorInLow;
+					//                    ColorBgra md = histogramInput.Histogram.GetMeanColor();
+					//                    ColorBgra hi = Levels.ColorInHigh;
+					//                    ColorBgra out_lo = Levels.ColorOutLow;
+					//                    ColorBgra out_hi = Levels.ColorOutHigh;
+					//
+					//                    for (int i = 0; i < 3; i++) {
+					//                        double logA = (col[i] - out_lo[i]) / (out_hi[i] - out_lo[i]);
+					//                        double logBase = (md[i] - lo[i]) / (hi[i] - lo[i]);
+					//                        double logVal = (logBase == 1.0) ? 0.0 : Math.Log (logA, logBase);
+					//
+					//                        Levels.SetGamma(i, (float)Utility.Clamp (logVal, 0.1, 10.0));
+					//                    }
+				} else if (panel == colorpanel_out_high) {
+					Levels.ColorOutHigh = col;
+				}
 			}
 		}
 
-		ccd.Destroy ();
+		cpd.Destroy ();
 
 		UpdateFromLevelsOp ();
 		UpdateLevels ();

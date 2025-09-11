@@ -32,11 +32,13 @@ public sealed class LevelsEffect : BaseEffect
 
 	private readonly IChromeService chrome;
 	private readonly IWorkspaceService workspace;
+	private readonly PaletteManager palette;
 
 	public LevelsEffect (IServiceProvider services)
 	{
 		chrome = services.GetService<IChromeService> ();
 		workspace = services.GetService<IWorkspaceService> ();
+		palette = services.GetService<PaletteManager> ();
 
 		EffectData = new LevelsData ();
 	}
@@ -44,7 +46,7 @@ public sealed class LevelsEffect : BaseEffect
 	public override async Task<bool> LaunchConfiguration ()
 	{
 		// TODO: Delegate `EffectData` changes to event handlers or similar
-		using LevelsDialog dialog = new (chrome, workspace, Data) {
+		using LevelsDialog dialog = new (chrome, workspace, palette, Data) {
 			Title = Name,
 			IconName = Icon,
 		};
