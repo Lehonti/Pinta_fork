@@ -69,12 +69,15 @@ public sealed class VignetteEffect : BaseEffect
 	public override Task<bool> LaunchConfiguration ()
 		=> chrome.LaunchSimpleEffectDialog (this, workspace);
 
-	private sealed record VignetteSettings (
-		Size canvasSize,
-		double radiusR,
-		double amount,
-		double amount1,
-		PointI centerOffset);
+	private readonly record struct VignetteSettings (
+		Size CanvasSize,
+		double RadiusR,
+		double Amount,
+		PointI CenterOffset,
+		double VignetteRLinear,
+		double VignetteGLinear,
+		double VignetteBLinear,
+		double VignetteAlpha);
 
 	private VignetteSettings CreateSettings (ImageSurface src)
 	{
@@ -83,12 +86,16 @@ public sealed class VignetteEffect : BaseEffect
 		double r1 = Math.Max (canvasSize.Width, canvasSize.Height) * 0.5d;
 		double r2 = r1 * Convert.ToDouble (data.RadiusPercentage) / 100d;
 		double amount = data.Amount;
+		Color color = data.VignetteColor;
 		return new (
-			canvasSize: canvasSize,
-			radiusR: Math.PI / (8 * (r2 * r2)),
-			amount: amount,
-			amount1: 1d - amount,
-			centerOffset: data.Offset);
+			CanvasSize: canvasSize,
+			RadiusR: Math.PI / (8 * (r2 * r2)),
+			Amount: amount,
+			CenterOffset: data.Offset,
+			VignetteRLinear: SrgbUtility.ToLinear (color.R),
+			VignetteGLinear: SrgbUtility.ToLinear (color.G),
+			VignetteBLinear: SrgbUtility.ToLinear (color.B),
+			VignetteAlpha: color.A);
 	}
 
 	// Algorithm code ported from PDN
@@ -97,34 +104,48 @@ public sealed class VignetteEffect : BaseEffect
 		VignetteSettings settings = CreateSettings (source);
 		ReadOnlySpan<ColorBgra> sourceData = source.GetReadOnlyPixelData ();
 		Span<ColorBgra> destinationData = destination.GetPixelData ();
-		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, settings.canvasSize))
+		foreach (var pixel in Tiling.GeneratePixelOffsets (roi, settings.CanvasSize))
 			destinationData[pixel.memoryOffset] = GetFinalPixelColor (
 				settings,
 				sourceData[pixel.memoryOffset],
-				pixel.coordinates - settings.centerOffset);
+				pixel.coordinates - settings.CenterOffset);
 	}
 
-	private static ColorBgra GetFinalPixelColor (VignetteSettings settings, in ColorBgra originalColor, in PointI fromCenter)
+	private static ColorBgra GetFinalPixelColor (in VignetteSettings settings, in ColorBgra originalColor, in PointI fromCenter)
 	{
-		double effectiveFactor = GetEffectiveFactor (settings, fromCenter);
+		double shapeFactor = GetVignetteShapeFactor (settings, fromCenter);
+		double vignetteIntensity = 1d - shapeFactor;
+		double effectiveOpacity = settings.Amount * vignetteIntensity * settings.VignetteAlpha;
+
+		if (effectiveOpacity <= 0)
+			return originalColor;
+
+		double originalRLinear = SrgbUtility.ToLinear (originalColor.R);
+		double originalGLinear = SrgbUtility.ToLinear (originalColor.G);
+		double originalBLinear = SrgbUtility.ToLinear (originalColor.B);
+
+		double opacityInverse = 1d - effectiveOpacity;
+
+		double resultRLinear = (originalRLinear * opacityInverse) + (settings.VignetteRLinear * effectiveOpacity);
+		double resultGLinear = (originalGLinear * opacityInverse) + (settings.VignetteGLinear * effectiveOpacity);
+		double resultBLinear = (originalBLinear * opacityInverse) + (settings.VignetteBLinear * effectiveOpacity);
+
 		return ColorBgra.FromBgra (
-			r: (byte) (0.5 + (255 * SrgbUtility.ToSrgbClamped (SrgbUtility.ToLinear (originalColor.R) * effectiveFactor))),
-			g: (byte) (0.5 + (255 * SrgbUtility.ToSrgbClamped (SrgbUtility.ToLinear (originalColor.G) * effectiveFactor))),
-			b: (byte) (0.5 + (255 * SrgbUtility.ToSrgbClamped (SrgbUtility.ToLinear (originalColor.B) * effectiveFactor))),
+			r: (byte) (0.5 + (255 * SrgbUtility.ToSrgbClamped (resultRLinear))),
+			g: (byte) (0.5 + (255 * SrgbUtility.ToSrgbClamped (resultGLinear))),
+			b: (byte) (0.5 + (255 * SrgbUtility.ToSrgbClamped (resultBLinear))),
 			a: originalColor.A);
 	}
 
-	private static double GetEffectiveFactor (VignetteSettings settings, in PointI fromCenter)
+	private static double GetVignetteShapeFactor (in VignetteSettings settings, in PointI fromCenter)
 	{
-		double d = fromCenter.MagnitudeSquared () * settings.radiusR;
+		double d = fromCenter.MagnitudeSquared () * settings.RadiusR;
+		if (d > Math.PI) return 0d;
 		double factor = Math.Cos (d);
-
-		if (factor <= 0 || d > Math.PI)
-			return settings.amount1;
-
+		if (factor <= 0) return 0d;
 		double factor2 = factor * factor;
 		double factor4 = factor2 * factor2;
-		return settings.amount1 + (settings.amount * factor4);
+		return factor4;
 	}
 }
 
@@ -141,4 +162,7 @@ public sealed class VignetteData : EffectData
 	[MinimumValue (0), MaximumValue (1)]
 	[Caption ("Strength")]
 	public double Amount { get; set; } = 1;
+
+	[Caption ("Vignette Color")]
+	public Color VignetteColor { get; set; } = Color.Black;
 }
