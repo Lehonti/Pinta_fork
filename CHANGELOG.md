@@ -13,11 +13,13 @@ Thanks to the following contributors who worked on this release:
 - @pedropaulosuzuki
 - @bplaat
 - @stefan-dangl
+- @PabloRufianJimenez
 
 ### Added
 - Implemented a new axonometric grid (View > Canvas Grid... > Show Axonometric Grid) (#1438, #1541)
 - Rewrote the canvas widget to improve performance and memory usage issues for zoomed-in images (#1020, #1485)
 - Added a new Cells effect (#1589)
+- Added a polygon selection mode to the Lasso Select tool (#1725, #1096)
 - The "About" dialog now includes links to the issue tracker and discussion forum (#1343)
 - When compiling Pinta, the GirCoreSource MSBuild property can be set to easily build Pinta against a local build of gir.core for easy debugging (#1403)
 - Keyboard shortcuts are now displayed on all toolbar button tooltips (#1408, #1432)
@@ -28,6 +30,7 @@ Thanks to the following contributors who worked on this release:
 - The text tool now supports using Ctrl+Backspace to delete words (#1680)
 - Added a Windows ARM64 installer (#1699, #1378)
 - The selection of an area on the canvas is now being projected and highlighted on the rulers (#1723)
+- Added a Radius Percentage parameter to the Twist effect (#1739)
 
 ### Changed
 - Packaging changes
@@ -40,6 +43,7 @@ Thanks to the following contributors who worked on this release:
 - View menu moved from hamburger menu to dedicated button (#1428, #1471)
 - Updated the application icon on macOS to better match the platform's icon style guidelines (#1572)
 - Removed the blend mode parameter from the Clouds effect. The replacement workflow is to create a new layer and configure the layer's blend mode (#1695)
+- Transparent palette colors are now drawn against a checkerboard pattern for improved visibility (#1759)
 
 ### Fixed
 - Fixed a bug where cancelling the color picker dialog could still update the palette colors (#1390, #1411)
@@ -52,6 +56,7 @@ Thanks to the following contributors who worked on this release:
 - Fixed a bug in the text tool where Ctrl+A only selected starting from the current line (#1698)
 - The icon and window title now appear correctly on KDE Wayland sessions (#1419)
 - Fixed bug where the text tool could incorrectly display a default cursor (#1707)
+- Fixed drifting when holding Shift while expanding a rectangle selection using the vertical or horizontal handles (#1733)
 
 ## [3.0.3](https://github.com/PintaProject/Pinta/release/tag/3.0.3) - 2025/08/01
 
