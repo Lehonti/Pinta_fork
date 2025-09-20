@@ -43,6 +43,7 @@ Thanks to the following contributors who worked on this release:
 - View menu moved from hamburger menu to dedicated button (#1428, #1471)
 - Updated the application icon on macOS to better match the platform's icon style guidelines (#1572)
 - Removed the blend mode parameter from the Clouds effect. The replacement workflow is to create a new layer and configure the layer's blend mode (#1695)
+- Transparent palette colors are now drawn against a checkerboard pattern for improved visibility (#1759)
 
 ### Fixed
 - Fixed a bug where cancelling the color picker dialog could still update the palette colors (#1390, #1411)
@@ -55,6 +56,7 @@ Thanks to the following contributors who worked on this release:
 - Fixed a bug in the text tool where Ctrl+A only selected starting from the current line (#1698)
 - The icon and window title now appear correctly on KDE Wayland sessions (#1419)
 - Fixed bug where the text tool could incorrectly display a default cursor (#1707)
+- Fixed drifting when holding Shift while expanding a rectangle selection using the vertical or horizontal handles (#1733)
 
 ## [3.0.3](https://github.com/PintaProject/Pinta/release/tag/3.0.3) - 2025/08/01
 
